@@ -6,9 +6,9 @@
 using namespace geode::prelude;
 
 // ---------------------------------------------------------------------
-// Диалоговое окно (popup) со своим текстбоксом для ввода текста.
-// Наследуемся от geode::Popup — стандартный способ делать сложные
-// попапы в Geode (фон, крестик закрытия и т.д. уже готовы из коробки).
+// Custom dialog popup with a text input box.
+// Inherits from geode::Popup — the standard Geode way to make
+// complex popups (background, close button etc. included out of the box).
 // ---------------------------------------------------------------------
 class TextBoxPopup : public geode::Popup {
 protected:
@@ -20,25 +20,25 @@ protected:
             return false;
         }
 
-        // Заголовок окна
-        this->setTitle("Диалоговое окно");
+        // Window title
+        this->setTitle("Text Box Dialog");
 
-        // Пояснительный текст
-        auto hint = CCLabelBMFont::create("Введите текст ниже:", "bigFont.fnt");
+        // Hint text
+        auto hint = CCLabelBMFont::create("Enter text below:", "bigFont.fnt");
         hint->setScale(0.45f);
         m_mainLayer->addChildAtPosition(hint, Anchor::Center, ccp(0, 40));
 
-        // Сам текстбокс (однострочное поле ввода с фоном)
-        m_textInput = TextInput::create(200.f, "Введите текст...");
+        // The text box itself (single-line input with background)
+        m_textInput = TextInput::create(200.f, "Type here...");
         m_textInput->setMaxCharCount(64);
         m_mainLayer->addChildAtPosition(m_textInput, Anchor::Center, ccp(0, 10));
 
-        // Лейбл для вывода результата (изначально пустой)
+        // Result label (empty by default)
         m_resultLabel = CCLabelBMFont::create("", "chatFont.fnt");
         m_resultLabel->setScale(0.5f);
         m_mainLayer->addChildAtPosition(m_resultLabel, Anchor::Center, ccp(0, -25));
 
-        // Кнопка подтверждения
+        // Confirm button
         auto okSprite = ButtonSprite::create("OK");
         auto okBtn = CCMenuItemSpriteExtra::create(
             okSprite, this, menu_selector(TextBoxPopup::onConfirm)
@@ -55,10 +55,11 @@ protected:
         auto text = m_textInput->getString();
 
         if (text.empty()) {
-            m_resultLabel->setString("Вы ничего не ввели!");
+            m_resultLabel->setString("You entered nothing!");
             m_resultLabel->setColor({255, 90, 90});
         } else {
-            m_resultLabel->setString(("Вы ввели: " + text).c_str());
+            std::string result = "You entered: " + std::string(text);
+            m_resultLabel->setString(result.c_str());
             m_resultLabel->setColor({120, 255, 120});
         }
     }
@@ -76,7 +77,7 @@ public:
 };
 
 // ---------------------------------------------------------------------
-// Добавляем кнопку в главное меню, которая открывает наш попап
+// Add a button to the main menu that opens our popup
 // ---------------------------------------------------------------------
 class $modify(MyMenuLayer, MenuLayer) {
     bool init() {
