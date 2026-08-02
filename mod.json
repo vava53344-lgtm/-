@@ -7,10 +7,10 @@
     },
     "version": "v1.0.0",
     "id": "com.yourname.textboxdialog",
-    "name": "Text Box Dialog",
-    "developer": "YourName",
+    "name": "paid editor",
+    "developer": "BannedButBack",
     "description": "Добавляет кастомное диалоговое окно с текстбоксом, открываемое кнопкой в главном меню.",
-    "repository": "https://github.com/yourname/textboxdialog",
+    "repository": "https://github.com/vava53344-lgtm/-",
     "tags": ["interface", "gameplay"],
     "dependencies": []
 }
