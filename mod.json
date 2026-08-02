@@ -1,0 +1,16 @@
+{
+    "geode": "4.0.0",
+    "gd": {
+        "win": "2.2074",
+        "android": "2.2074",
+        "mac": "2.2074"
+    },
+    "version": "v1.0.0",
+    "id": "com.yourname.textboxdialog",
+    "name": "Text Box Dialog",
+    "developer": "YourName",
+    "description": "Добавляет кастомное диалоговое окно с текстбоксом, открываемое кнопкой в главном меню.",
+    "repository": "https://github.com/yourname/textboxdialog",
+    "tags": ["interface", "gameplay"],
+    "dependencies": []
+}
