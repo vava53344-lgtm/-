@@ -14,13 +14,13 @@ class TextBoxPopup : public geode::Popup {
 protected:
     TextInput* m_textInput = nullptr;
 
-    bool init() {
+    bool init(std::string const& title, std::string const& okButtonText, int maxCharCount) {
         if (!Popup::init(280.f, 160.f)) {
             return false;
         }
 
-        // Window title
-        this->setTitle("Text Box Dialog");
+        // Window title (customizable)
+        this->setTitle(title.c_str());
 
         // Hint text
         auto hint = CCLabelBMFont::create("Enter text below:", "bigFont.fnt");
@@ -29,11 +29,11 @@ protected:
 
         // The text box itself (single-line input with background)
         m_textInput = TextInput::create(200.f, "Type here...");
-        m_textInput->setMaxCharCount(64);
+        m_textInput->setMaxCharCount(maxCharCount); // customizable character limit
         m_mainLayer->addChildAtPosition(m_textInput, Anchor::Center, ccp(0, -5));
 
-        // Confirm button
-        auto okSprite = ButtonSprite::create("OK");
+        // Confirm button (customizable text)
+        auto okSprite = ButtonSprite::create(okButtonText.c_str());
         auto okBtn = CCMenuItemSpriteExtra::create(
             okSprite, this, menu_selector(TextBoxPopup::onConfirm)
         );
@@ -48,18 +48,23 @@ protected:
     void onConfirm(CCObject*) {
         auto text = m_textInput->getString();
 
-        std::string result = text.empty()
-            ? std::string("You entered nothing!")
-            : ("You entered: " + std::string(text));
-
-        // This shows the native GD alert style (same as "Move to Top" etc.)
-        FLAlertLayer::create("Result", result.c_str(), "OK")->show();
+        if (text.empty()) {
+            FLAlertLayer::create("Result", "You entered nothing!", "OK")->show();
+        } else {
+            std::string result = std::string(text);
+            FLAlertLayer::create("Result", result.c_str(), "OK")->show();
+        }
     }
 
 public:
-    static TextBoxPopup* create() {
+    // title / okButtonText / maxCharCount — легко менять при вызове create()
+    static TextBoxPopup* create(
+        std::string const& title = "Text Box Dialog",
+        std::string const& okButtonText = "OK",
+        int maxCharCount = 64
+    ) {
         auto ret = new TextBoxPopup();
-        if (ret->init()) {
+        if (ret->init(title, okButtonText, maxCharCount)) {
             ret->autorelease();
             return ret;
         }
@@ -79,7 +84,7 @@ class $modify(MyMenuLayer, MenuLayer) {
 
         auto menu = this->getChildByID("bottom-menu");
         if (menu) {
-            auto btnSprite = ButtonSprite::create("TB");
+            auto btnSprite = ButtonSprite::create("TBC");
             auto btn = CCMenuItemSpriteExtra::create(
                 btnSprite, this, menu_selector(MyMenuLayer::onOpenTextBox)
             );
@@ -93,6 +98,7 @@ class $modify(MyMenuLayer, MenuLayer) {
     }
 
     void onOpenTextBox(CCObject*) {
-        TextBoxPopup::create()->show();
+        // Change title, OK button text, or character limit right here
+        TextBoxPopup::create("Text Box Dialog", "OK", 64)->show();
     }
 };
