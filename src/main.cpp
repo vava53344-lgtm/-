@@ -7,11 +7,11 @@ using namespace geode::prelude;
 constexpr int REQUIRED_ORBS = 1000;
 
 class $modify(EditorOrbLockLayer, LevelEditorLayer) {
-    bool init(GJGameLevel* level) {
+    bool init(GJGameLevel* level, bool noUI) {
         // Сначала даём редактору инициализироваться штатно —
         // это безопаснее, чем прерывать init() и рисковать тем,
         // что вызывающий код не проверяет nullptr сцену.
-        if (!LevelEditorLayer::init(level)) {
+        if (!LevelEditorLayer::init(level, noUI)) {
             return false;
         }
 
