@@ -10,12 +10,16 @@ using namespace geode::prelude;
 // Наследуемся от geode::Popup — стандартный способ делать сложные
 // попапы в Geode (фон, крестик закрытия и т.д. уже готовы из коробки).
 // ---------------------------------------------------------------------
-class TextBoxPopup : public geode::Popup<> {
+class TextBoxPopup : public geode::Popup {
 protected:
     TextInput* m_textInput = nullptr;
     CCLabelBMFont* m_resultLabel = nullptr;
 
-    bool setup() override {
+    bool init() {
+        if (!Popup::init(280.f, 180.f)) {
+            return false;
+        }
+
         // Заголовок окна
         this->setTitle("Диалоговое окно");
 
@@ -62,7 +66,7 @@ protected:
 public:
     static TextBoxPopup* create() {
         auto ret = new TextBoxPopup();
-        if (ret->initAnchored(280.f, 180.f)) {
+        if (ret->init()) {
             ret->autorelease();
             return ret;
         }
