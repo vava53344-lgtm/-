@@ -1,5 +1,5 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/CCScene.hpp>
+#include <Geode/modify/CCDirector.hpp>
 #include <Geode/modify/PauseLayer.hpp>
 #include <Geode/ui/GeodeUI.hpp>
 #include <array>
@@ -93,7 +93,7 @@ public:
     }
 };
 
-// ============ SETTINGS POPUP ============
+// ============ SETTINGS POPUP (меньше и ниже) ============
 
 class MotionBlurSettingsPopup : public CCLayerColor {
 public:
@@ -112,21 +112,21 @@ public:
 
         auto winSize = CCDirector::sharedDirector()->getWinSize();
 
-        // Блокируем тачи под попапом через setTouchEnabled
+        // Блокируем тачи
         this->setTouchEnabled(true);
         this->setTouchMode(kCCTouchesOneByOne);
         this->setTouchPriority(-500);
 
-        // Фон попапа
+        // Фон попапа — МЕНЬШЕ
         auto bg = CCScale9Sprite::create("GJ_square01.png");
-        bg->setContentSize({300, 200});
-        bg->setPosition({winSize.width / 2, winSize.height / 2});
+        bg->setContentSize({260, 160});
+        bg->setPosition({winSize.width / 2, winSize.height / 2 - 40}); // НИЖЕ
         this->addChild(bg);
 
         // Заголовок
-        auto title = CCLabelBMFont::create("Motion Blur Settings", "bigFont.fnt");
-        title->setScale(0.6f);
-        title->setPosition({winSize.width / 2, winSize.height / 2 + 70});
+        auto title = CCLabelBMFont::create("Motion Blur", "bigFont.fnt");
+        title->setScale(0.5f);
+        title->setPosition({winSize.width / 2, winSize.height / 2 + 15}); // НИЖЕ
         this->addChild(title);
 
         auto state = MotionBlurState::get();
@@ -135,12 +135,12 @@ public:
 
         // Toggle: Enabled
         auto toggleMenu = CCMenu::create();
-        toggleMenu->setPosition({winSize.width / 2 - 60, winSize.height / 2 + 30});
+        toggleMenu->setPosition({winSize.width / 2 - 50, winSize.height / 2 - 20}); // НИЖЕ
 
         auto toggle = CCMenuItemToggler::createWithStandardSprites(
             this,
             menu_selector(MotionBlurSettingsPopup::onToggle),
-            0.8f
+            0.7f // МЕНЬШЕ
         );
         toggle->setPosition({0, 0});
         toggle->toggle(state->m_enabled);
@@ -148,20 +148,21 @@ public:
         m_toggle = toggle;
 
         auto toggleLabel = CCLabelBMFont::create("Enabled", "bigFont.fnt");
-        toggleLabel->setScale(0.45f);
-        toggleLabel->setPosition({winSize.width / 2 + 30, winSize.height / 2 + 30});
+        toggleLabel->setScale(0.4f); // МЕНЬШЕ
+        toggleLabel->setPosition({winSize.width / 2 + 25, winSize.height / 2 - 20});
+        toggleLabel->setAnchorPoint({0, 0.5f});
         this->addChild(toggleLabel);
 
         this->addChild(toggleMenu);
 
         // Slider: Strength
         auto sliderLabel = CCLabelBMFont::create("Strength", "bigFont.fnt");
-        sliderLabel->setScale(0.45f);
-        sliderLabel->setPosition({winSize.width / 2, winSize.height / 2 - 10});
+        sliderLabel->setScale(0.4f); // МЕНЬШЕ
+        sliderLabel->setPosition({winSize.width / 2, winSize.height / 2 - 55}); // НИЖЕ
         this->addChild(sliderLabel);
 
-        auto slider = Slider::create(this, menu_selector(MotionBlurSettingsPopup::onSlider), 0.8f);
-        slider->setPosition({winSize.width / 2, winSize.height / 2 - 40});
+        auto slider = Slider::create(this, menu_selector(MotionBlurSettingsPopup::onSlider), 0.7f); // МЕНЬШЕ
+        slider->setPosition({winSize.width / 2, winSize.height / 2 - 80}); // НИЖЕ
         slider->setValue(state->m_strength);
         this->addChild(slider);
         m_slider = slider;
@@ -170,19 +171,20 @@ public:
             fmt::format("{:.0f}%", state->m_strength * 100).c_str(),
             "bigFont.fnt"
         );
-        m_valueLabel->setScale(0.4f);
-        m_valueLabel->setPosition({winSize.width / 2, winSize.height / 2 - 65});
+        m_valueLabel->setScale(0.35f); // МЕНЬШЕ
+        m_valueLabel->setPosition({winSize.width / 2, winSize.height / 2 - 100}); // НИЖЕ
         this->addChild(m_valueLabel);
 
         // Close button
         auto closeMenu = CCMenu::create();
-        closeMenu->setPosition({winSize.width / 2 + 130, winSize.height / 2 + 80});
+        closeMenu->setPosition({winSize.width / 2 + 110, winSize.height / 2 + 30}); // НИЖЕ
 
         auto closeBtn = CCMenuItemSpriteExtra::create(
             CCSprite::createWithSpriteFrameName("GJ_closeBtn_001.png"),
             this,
             menu_selector(MotionBlurSettingsPopup::onClose)
         );
+        closeBtn->setScale(0.7f); // МЕНЬШЕ
         closeMenu->addChild(closeBtn);
         this->addChild(closeMenu);
 
@@ -216,7 +218,7 @@ private:
     CCLabelBMFont* m_valueLabel = nullptr;
 };
 
-// ============ PAUSE LAYER BUTTON ============
+// ============ PAUSE LAYER BUTTON (НИЖЕ) ============
 
 class $modify(MyPauseLayer, PauseLayer) {
     struct Fields {
@@ -233,10 +235,12 @@ class $modify(MyPauseLayer, PauseLayer) {
             this,
             menu_selector(MyPauseLayer::onMotionBlurSettings)
         );
+        btn->setScale(0.6f); // МЕНЬШЕ
 
         auto menu = CCMenu::create();
         menu->addChild(btn);
-        menu->setPosition({winSize.width - 40, winSize.height - 40});
+        // НИЖЕ и ЛЕВЕЕ — под кнопкой Practice
+        menu->setPosition({winSize.width - 35, 45});
         this->addChild(menu, 100);
     }
 
@@ -248,15 +252,15 @@ class $modify(MyPauseLayer, PauseLayer) {
     }
 };
 
-// ============ CCSCENE HOOK ============
+// ============ CCDIRECTOR HOOK (вместо CCScene) ============
 
-class $modify(CCScene) {
-    void visit() {
+class $modify(CCDirector) {
+    void drawScene() {
         auto state = MotionBlurState::get();
         state->updateSettings();
 
         if (!state->m_enabled) {
-            CCScene::visit();
+            CCDirector::drawScene();
             return;
         }
 
@@ -266,7 +270,7 @@ class $modify(CCScene) {
 
         static bool s_rendering = false;
         if (s_rendering) {
-            CCScene::visit();
+            CCDirector::drawScene();
             return;
         }
 
@@ -274,7 +278,7 @@ class $modify(CCScene) {
 
         auto rt = state->getCurrentRT();
         rt->beginWithClear(0, 0, 0, 0, 0);
-        CCScene::visit();
+        CCDirector::drawScene(); // оригинальный рендер
         rt->end();
 
         state->advance();
