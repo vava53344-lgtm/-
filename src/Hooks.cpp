@@ -2,7 +2,6 @@
 #include <Geode/modify/CCScene.hpp>
 #include <Geode/modify/PauseLayer.hpp>
 #include <Geode/ui/GeodeUI.hpp>
-#include <Geode/binding/EventListenerTouchOneByOne.hpp>
 #include <array>
 #include <algorithm>
 
@@ -114,10 +113,10 @@ public:
         auto winSize = CCDirector::sharedDirector()->getWinSize();
 
         // Блокируем тачи под попапом
-        auto listener = cocos2d::EventListenerTouchOneByOne::create();
+        auto listener = EventListenerTouchOneByOne::create();
         listener->setSwallowTouches(true);
-        listener->onTouchBegan = [](cocos2d::Touch*, cocos2d::Event*) { return true; };
-        cocos2d::Director::getInstance()->getEventDispatcher()->addEventListenerWithSceneGraphPriority(listener, this);
+        listener->onTouchBegan = [](Touch*, Event*) { return true; };
+        Director::getInstance()->getEventDispatcher()->addEventListenerWithSceneGraphPriority(listener, this);
 
         // Фон попапа
         auto bg = CCScale9Sprite::create("GJ_square01.png");
