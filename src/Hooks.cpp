@@ -2,6 +2,7 @@
 #include <Geode/modify/CCScene.hpp>
 #include <Geode/modify/PauseLayer.hpp>
 #include <Geode/ui/GeodeUI.hpp>
+#include <Geode/binding/EventListenerTouchOneByOne.hpp>
 #include <array>
 #include <algorithm>
 
@@ -93,7 +94,7 @@ public:
     }
 };
 
-// ============ SETTINGS POPUP (чистый CCLayer, не Geode Popup) ============
+// ============ SETTINGS POPUP ============
 
 class MotionBlurSettingsPopup : public CCLayerColor {
 public:
@@ -113,10 +114,10 @@ public:
         auto winSize = CCDirector::sharedDirector()->getWinSize();
 
         // Блокируем тачи под попапом
-        auto listener = EventListenerTouchOneByOne::create();
+        auto listener = cocos2d::EventListenerTouchOneByOne::create();
         listener->setSwallowTouches(true);
-        listener->onTouchBegan = [](Touch*, Event*) { return true; };
-        getEventDispatcher()->addEventListenerWithSceneGraphPriority(listener, this);
+        listener->onTouchBegan = [](cocos2d::Touch*, cocos2d::Event*) { return true; };
+        cocos2d::Director::getInstance()->getEventDispatcher()->addEventListenerWithSceneGraphPriority(listener, this);
 
         // Фон попапа
         auto bg = CCScale9Sprite::create("GJ_square01.png");
@@ -215,7 +216,11 @@ private:
 
 // ============ PAUSE LAYER BUTTON ============
 
-class $modify(PauseLayer) {
+class $modify(MyPauseLayer, PauseLayer) {
+    struct Fields {
+        CCMenuItemSpriteExtra* m_blurBtn = nullptr;
+    };
+
     void customSetup() {
         PauseLayer::customSetup();
 
@@ -224,7 +229,7 @@ class $modify(PauseLayer) {
         auto btn = CCMenuItemSpriteExtra::create(
             CCSprite::createWithSpriteFrameName("GJ_optionsBtn_001.png"),
             this,
-            menu_selector(PauseLayer::onMotionBlurSettings)
+            menu_selector(MyPauseLayer::onMotionBlurSettings)
         );
 
         auto menu = CCMenu::create();
