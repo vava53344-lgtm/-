@@ -1,107 +1,12 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/PauseLayer.hpp>
+#include <Geode/ui/GeodeUI.hpp>
+#include "MotionBlurManager.hpp"
 #include <array>
 #include <algorithm>
 
 using namespace geode::prelude;
-
-// ============ MOTION BLUR STATE ============
-
-class MotionBlurState {
-public:
-    static MotionBlurState* get() {
-        static MotionBlurState instance;
-        return &instance;
-    }
-
-    bool m_enabled = true;
-    float m_strength = 0.5f;
-    bool m_initialized = false;
-    static constexpr size_t FRAME_COUNT = 4;
-    std::array<CCRenderTexture*, FRAME_COUNT> m_frames{};
-    size_t m_currentFrame = 0;
-    bool m_isRendering = false;
-
-    void init() {
-        if (m_initialized) return;
-        auto winSize = CCDirector::sharedDirector()->getWinSize();
-        
-        for (size_t i = 0; i < FRAME_COUNT; i++) {
-            // Создаём с правильным форматом — RGBA8, без depth/stencil
-            m_frames[i] = CCRenderTexture::create(winSize.width, winSize.height, kCCTexture2DPixelFormat_RGBA8888);
-            if (m_frames[i]) {
-                m_frames[i]->retain();
-                if (auto sprite = m_frames[i]->getSprite()) {
-                    sprite->setAnchorPoint({0.5f, 0.5f});
-                    sprite->setFlipY(true);
-                    // Включаем смешивание для спрайта
-                    sprite->setBlendFunc({GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA});
-                }
-            }
-        }
-        m_initialized = true;
-    }
-
-    void cleanup() {
-        for (size_t i = 0; i < FRAME_COUNT; i++) {
-            if (m_frames[i]) {
-                m_frames[i]->release();
-                m_frames[i] = nullptr;
-            }
-        }
-        m_initialized = false;
-        m_currentFrame = 0;
-    }
-
-    CCRenderTexture* getCurrentRT() {
-        return m_frames[m_currentFrame];
-    }
-
-    void advance() {
-        m_currentFrame = (m_currentFrame + 1) % FRAME_COUNT;
-    }
-
-    void updateSettings() {
-        if (auto mod = Mod::get()) {
-            m_enabled = mod->getSettingValue<bool>("enabled");
-            m_strength = static_cast<float>(mod->getSettingValue<double>("strength"));
-        }
-    }
-
-    void renderAccumulation() {
-        auto winSize = CCDirector::sharedDirector()->getWinSize();
-        
-        // Альфа-смешивание
-        ccBlendFunc blendNormal = {GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA};
-
-        for (size_t i = 0; i < FRAME_COUNT; i++) {
-            size_t idx = (m_currentFrame + FRAME_COUNT - i) % FRAME_COUNT;
-            auto rt = m_frames[idx];
-            if (!rt) continue;
-            
-            auto sprite = rt->getSprite();
-            if (!sprite) continue;
-
-            // Текущий кадр (только что отрендеренный) — полностью непрозрачный
-            // Предыдущие — с убывающей прозрачностью
-            float alpha;
-            if (i == 0) {
-                alpha = 1.0f;
-            } else {
-                // Экспоненциальное затухание для более плавного blur
-                alpha = m_strength * std::pow(0.6f, static_cast<float>(i - 1));
-            }
-            alpha = std::clamp(alpha, 0.0f, 1.0f);
-
-            sprite->setOpacity(static_cast<GLubyte>(alpha * 255));
-            sprite->setBlendFunc(blendNormal);
-            sprite->setPosition({winSize.width / 2, winSize.height / 2});
-            sprite->setScale(1.0f);
-            sprite->visit();
-        }
-    }
-};
 
 // ============ SETTINGS POPUP ============
 
@@ -255,7 +160,7 @@ class $modify(MyPauseLayer, PauseLayer) {
     }
 };
 
-// ============ PLAYLAYER HOOK (правильный blur) ============
+// ============ PLAYLAYER HOOK ============
 
 class $modify(PlayLayer) {
     struct Fields {
@@ -291,16 +196,12 @@ class $modify(PlayLayer) {
 
         state->m_isRendering = true;
 
-        // Рендерим текущий кадр в текстуру
         auto rt = state->getCurrentRT();
         rt->beginWithClear(0, 0, 0, 0, 0);
         PlayLayer::visit();
         rt->end();
 
-        // Сдвигаем кольцевой буфер
         state->advance();
-
-        // Рисуем накопленные кадры
         state->renderAccumulation();
 
         state->m_isRendering = false;
