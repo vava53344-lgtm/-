@@ -4,12 +4,9 @@
 using namespace geode::prelude;
 
 $execute {
-    // Инициализируем менеджер при загрузке мода
-    MotionBlurManager::get()->init();
-    
-    // Загружаем стартовые значения из mod.json
+    MotionBlurState::get()->init();
     if (auto mod = Mod::get()) {
-        MotionBlurManager::get()->setEnabled(mod->getSettingValue<bool>("enabled"));
-        MotionBlurManager::get()->setStrength(static_cast<float>(mod->getSettingValue<double>("strength")));
+        MotionBlurState::get()->m_enabled = mod->getSettingValue<bool>("enabled");
+        MotionBlurState::get()->m_strength = static_cast<float>(mod->getSettingValue<double>("strength"));
     }
 }
