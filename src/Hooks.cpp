@@ -112,11 +112,10 @@ public:
 
         auto winSize = CCDirector::sharedDirector()->getWinSize();
 
-        // Блокируем тачи под попапом
-        auto listener = EventListenerTouchOneByOne::create();
-        listener->setSwallowTouches(true);
-        listener->onTouchBegan = [](Touch*, Event*) { return true; };
-        Director::getInstance()->getEventDispatcher()->addEventListenerWithSceneGraphPriority(listener, this);
+        // Блокируем тачи под попапом через setTouchEnabled
+        this->setTouchEnabled(true);
+        this->setTouchMode(kCCTouchesOneByOne);
+        this->setTouchPriority(-500);
 
         // Фон попапа
         auto bg = CCScale9Sprite::create("GJ_square01.png");
@@ -187,6 +186,10 @@ public:
         closeMenu->addChild(closeBtn);
         this->addChild(closeMenu);
 
+        return true;
+    }
+
+    bool ccTouchBegan(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) override {
         return true;
     }
 
