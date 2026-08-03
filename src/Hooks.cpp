@@ -1,4 +1,7 @@
 #include <Geode/Geode.hpp>
+#include <Geode/modify/CCScene.hpp>
+#include <Geode/modify/PauseLayer.hpp>
+#include <Geode/ui/GeodeUI.hpp>
 #include <array>
 #include <algorithm>
 
@@ -90,13 +93,13 @@ public:
     }
 };
 
-// ============ SETTINGS POPUP ============
+// ============ SETTINGS POPUP (чистый CCLayer, не Geode Popup) ============
 
-class MotionBlurSettingsPopup : public geode::Popup<> {
+class MotionBlurSettingsPopup : public CCLayerColor {
 public:
     static MotionBlurSettingsPopup* create() {
         auto ret = new MotionBlurSettingsPopup();
-        if (ret->initAnchored(300.f, 200.f, "Motion Blur Settings")) {
+        if (ret && ret->init()) {
             ret->autorelease();
             return ret;
         }
@@ -104,62 +107,85 @@ public:
         return nullptr;
     }
 
-protected:
-    bool setup() override {
+    bool init() override {
+        if (!CCLayerColor::initWithColor({0, 0, 0, 150})) return false;
+
+        auto winSize = CCDirector::sharedDirector()->getWinSize();
+
+        // Блокируем тачи под попапом
+        auto listener = EventListenerTouchOneByOne::create();
+        listener->setSwallowTouches(true);
+        listener->onTouchBegan = [](Touch*, Event*) { return true; };
+        getEventDispatcher()->addEventListenerWithSceneGraphPriority(listener, this);
+
+        // Фон попапа
+        auto bg = CCScale9Sprite::create("GJ_square01.png");
+        bg->setContentSize({300, 200});
+        bg->setPosition({winSize.width / 2, winSize.height / 2});
+        this->addChild(bg);
+
+        // Заголовок
+        auto title = CCLabelBMFont::create("Motion Blur Settings", "bigFont.fnt");
+        title->setScale(0.6f);
+        title->setPosition({winSize.width / 2, winSize.height / 2 + 70});
+        this->addChild(title);
+
         auto state = MotionBlurState::get();
         auto mod = Mod::get();
         if (!mod) return false;
 
-        auto winSize = m_mainLayer->getContentSize();
-
         // Toggle: Enabled
+        auto toggleMenu = CCMenu::create();
+        toggleMenu->setPosition({winSize.width / 2 - 60, winSize.height / 2 + 30});
+
         auto toggle = CCMenuItemToggler::createWithStandardSprites(
             this,
             menu_selector(MotionBlurSettingsPopup::onToggle),
-            1.0f
+            0.8f
         );
-        toggle->setPosition({winSize.width / 2 - 80, winSize.height - 50});
+        toggle->setPosition({0, 0});
         toggle->toggle(state->m_enabled);
+        toggleMenu->addChild(toggle);
+        m_toggle = toggle;
 
         auto toggleLabel = CCLabelBMFont::create("Enabled", "bigFont.fnt");
-        toggleLabel->setScale(0.5f);
-        toggleLabel->setPosition({winSize.width / 2 + 20, winSize.height - 50});
-        toggleLabel->setAnchorPoint({0, 0.5f});
+        toggleLabel->setScale(0.45f);
+        toggleLabel->setPosition({winSize.width / 2 + 30, winSize.height / 2 + 30});
+        this->addChild(toggleLabel);
 
-        m_mainLayer->addChild(toggle);
-        m_mainLayer->addChild(toggleLabel);
-        m_toggle = toggle;
+        this->addChild(toggleMenu);
 
         // Slider: Strength
         auto sliderLabel = CCLabelBMFont::create("Strength", "bigFont.fnt");
-        sliderLabel->setScale(0.5f);
-        sliderLabel->setPosition({winSize.width / 2, winSize.height - 90});
+        sliderLabel->setScale(0.45f);
+        sliderLabel->setPosition({winSize.width / 2, winSize.height / 2 - 10});
+        this->addChild(sliderLabel);
 
-        auto slider = Slider::create(this, menu_selector(MotionBlurSettingsPopup::onSlider), 1.0f);
-        slider->setPosition({winSize.width / 2, winSize.height - 120});
+        auto slider = Slider::create(this, menu_selector(MotionBlurSettingsPopup::onSlider), 0.8f);
+        slider->setPosition({winSize.width / 2, winSize.height / 2 - 40});
         slider->setValue(state->m_strength);
+        this->addChild(slider);
+        m_slider = slider;
 
-        auto valueLabel = CCLabelBMFont::create(
+        m_valueLabel = CCLabelBMFont::create(
             fmt::format("{:.0f}%", state->m_strength * 100).c_str(),
             "bigFont.fnt"
         );
-        valueLabel->setScale(0.4f);
-        valueLabel->setPosition({winSize.width / 2, winSize.height - 145});
-        valueLabel->setTag(100);
-
-        m_mainLayer->addChild(sliderLabel);
-        m_mainLayer->addChild(slider);
-        m_mainLayer->addChild(valueLabel);
-        m_slider = slider;
+        m_valueLabel->setScale(0.4f);
+        m_valueLabel->setPosition({winSize.width / 2, winSize.height / 2 - 65});
+        this->addChild(m_valueLabel);
 
         // Close button
+        auto closeMenu = CCMenu::create();
+        closeMenu->setPosition({winSize.width / 2 + 130, winSize.height / 2 + 80});
+
         auto closeBtn = CCMenuItemSpriteExtra::create(
             CCSprite::createWithSpriteFrameName("GJ_closeBtn_001.png"),
             this,
             menu_selector(MotionBlurSettingsPopup::onClose)
         );
-        closeBtn->setPosition({15, winSize.height - 15});
-        m_buttonMenu->addChild(closeBtn);
+        closeMenu->addChild(closeBtn);
+        this->addChild(closeMenu);
 
         return true;
     }
@@ -174,21 +200,17 @@ protected:
         float val = m_slider->getValue();
         MotionBlurState::get()->m_strength = val;
         Mod::get()->setSettingValue("strength", static_cast<double>(val));
-
-        if (auto label = m_mainLayer->getChildByTag(100)) {
-            if (auto bmLabel = typeinfo_cast<CCLabelBMFont*>(label)) {
-                bmLabel->setString(fmt::format("{:.0f}%", val * 100).c_str());
-            }
-        }
+        m_valueLabel->setString(fmt::format("{:.0f}%", val * 100).c_str());
     }
 
     void onClose(CCObject*) {
-        this->onClose(nullptr);
+        this->removeFromParentAndCleanup(true);
     }
 
 private:
     CCMenuItemToggler* m_toggle = nullptr;
     Slider* m_slider = nullptr;
+    CCLabelBMFont* m_valueLabel = nullptr;
 };
 
 // ============ PAUSE LAYER BUTTON ============
@@ -207,14 +229,14 @@ class $modify(PauseLayer) {
 
         auto menu = CCMenu::create();
         menu->addChild(btn);
-        menu->setPosition({winSize.width - 30, winSize.height - 30});
+        menu->setPosition({winSize.width - 40, winSize.height - 40});
         this->addChild(menu, 100);
     }
 
     void onMotionBlurSettings(CCObject*) {
         auto popup = MotionBlurSettingsPopup::create();
         if (popup) {
-            popup->show();
+            CCDirector::sharedDirector()->getRunningScene()->addChild(popup, 999);
         }
     }
 };
