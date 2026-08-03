@@ -9,17 +9,17 @@
   "name": "Motion Blur",
   "version": "v1.0.0",
   "developer": "YourName",
-  "description": "Добавляет размытие в движении как в CapCut с настройкой силы эффекта",
+  "description": "Adds motion blur like in CapCut with adjustable strength",
   "settings": {
     "enabled": {
-      "name": "Motion Blur",
-      "description": "Just mtion blur (•-•)",
+      "name": "Enabled",
+      "description": "Toggle motion blur on/off",
       "type": "bool",
       "default": true
     },
     "strength": {
-      "name": "Сила размытия",
-      "description": "Интенсивность эффекта размытия (0 = минимум, 1 = максимум)",
+      "name": "Strength",
+      "description": "Motion blur intensity (0 = off, 1 = max)",
       "type": "float",
       "default": 0.5,
       "min": 0.0,
