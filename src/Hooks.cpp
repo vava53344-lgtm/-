@@ -1,7 +1,6 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/CCDirector.hpp>
+#include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/PauseLayer.hpp>
-#include <Geode/ui/GeodeUI.hpp>
 #include <array>
 #include <algorithm>
 
@@ -22,17 +21,22 @@ public:
     static constexpr size_t FRAME_COUNT = 4;
     std::array<CCRenderTexture*, FRAME_COUNT> m_frames{};
     size_t m_currentFrame = 0;
+    bool m_isRendering = false;
 
     void init() {
         if (m_initialized) return;
         auto winSize = CCDirector::sharedDirector()->getWinSize();
+        
         for (size_t i = 0; i < FRAME_COUNT; i++) {
-            m_frames[i] = CCRenderTexture::create(winSize.width, winSize.height);
+            // Создаём с правильным форматом — RGBA8, без depth/stencil
+            m_frames[i] = CCRenderTexture::create(winSize.width, winSize.height, kCCTexture2DPixelFormat_RGBA8888);
             if (m_frames[i]) {
                 m_frames[i]->retain();
                 if (auto sprite = m_frames[i]->getSprite()) {
                     sprite->setAnchorPoint({0.5f, 0.5f});
                     sprite->setFlipY(true);
+                    // Включаем смешивание для спрайта
+                    sprite->setBlendFunc({GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA});
                 }
             }
         }
@@ -47,6 +51,7 @@ public:
             }
         }
         m_initialized = false;
+        m_currentFrame = 0;
     }
 
     CCRenderTexture* getCurrentRT() {
@@ -66,26 +71,31 @@ public:
 
     void renderAccumulation() {
         auto winSize = CCDirector::sharedDirector()->getWinSize();
-        ccBlendFunc blend = {GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA};
+        
+        // Альфа-смешивание
+        ccBlendFunc blendNormal = {GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA};
 
         for (size_t i = 0; i < FRAME_COUNT; i++) {
             size_t idx = (m_currentFrame + FRAME_COUNT - i) % FRAME_COUNT;
             auto rt = m_frames[idx];
             if (!rt) continue;
+            
             auto sprite = rt->getSprite();
             if (!sprite) continue;
 
+            // Текущий кадр (только что отрендеренный) — полностью непрозрачный
+            // Предыдущие — с убывающей прозрачностью
             float alpha;
             if (i == 0) {
                 alpha = 1.0f;
             } else {
-                float t = static_cast<float>(i) / (FRAME_COUNT - 1);
-                alpha = m_strength * (1.0f - t * 0.5f);
+                // Экспоненциальное затухание для более плавного blur
+                alpha = m_strength * std::pow(0.6f, static_cast<float>(i - 1));
             }
             alpha = std::clamp(alpha, 0.0f, 1.0f);
 
             sprite->setOpacity(static_cast<GLubyte>(alpha * 255));
-            sprite->setBlendFunc(blend);
+            sprite->setBlendFunc(blendNormal);
             sprite->setPosition({winSize.width / 2, winSize.height / 2});
             sprite->setScale(1.0f);
             sprite->visit();
@@ -93,7 +103,7 @@ public:
     }
 };
 
-// ============ SETTINGS POPUP (меньше и ниже) ============
+// ============ SETTINGS POPUP ============
 
 class MotionBlurSettingsPopup : public CCLayerColor {
 public:
@@ -112,35 +122,31 @@ public:
 
         auto winSize = CCDirector::sharedDirector()->getWinSize();
 
-        // Блокируем тачи
         this->setTouchEnabled(true);
         this->setTouchMode(kCCTouchesOneByOne);
         this->setTouchPriority(-500);
 
-        // Фон попапа — МЕНЬШЕ
         auto bg = CCScale9Sprite::create("GJ_square01.png");
         bg->setContentSize({260, 160});
-        bg->setPosition({winSize.width / 2, winSize.height / 2 - 40}); // НИЖЕ
+        bg->setPosition({winSize.width / 2, winSize.height / 2 - 40});
         this->addChild(bg);
 
-        // Заголовок
         auto title = CCLabelBMFont::create("Motion Blur", "bigFont.fnt");
         title->setScale(0.5f);
-        title->setPosition({winSize.width / 2, winSize.height / 2 + 15}); // НИЖЕ
+        title->setPosition({winSize.width / 2, winSize.height / 2 + 15});
         this->addChild(title);
 
         auto state = MotionBlurState::get();
         auto mod = Mod::get();
         if (!mod) return false;
 
-        // Toggle: Enabled
         auto toggleMenu = CCMenu::create();
-        toggleMenu->setPosition({winSize.width / 2 - 50, winSize.height / 2 - 20}); // НИЖЕ
+        toggleMenu->setPosition({winSize.width / 2 - 50, winSize.height / 2 - 20});
 
         auto toggle = CCMenuItemToggler::createWithStandardSprites(
             this,
             menu_selector(MotionBlurSettingsPopup::onToggle),
-            0.7f // МЕНЬШЕ
+            0.7f
         );
         toggle->setPosition({0, 0});
         toggle->toggle(state->m_enabled);
@@ -148,21 +154,20 @@ public:
         m_toggle = toggle;
 
         auto toggleLabel = CCLabelBMFont::create("Enabled", "bigFont.fnt");
-        toggleLabel->setScale(0.4f); // МЕНЬШЕ
+        toggleLabel->setScale(0.4f);
         toggleLabel->setPosition({winSize.width / 2 + 25, winSize.height / 2 - 20});
         toggleLabel->setAnchorPoint({0, 0.5f});
         this->addChild(toggleLabel);
 
         this->addChild(toggleMenu);
 
-        // Slider: Strength
         auto sliderLabel = CCLabelBMFont::create("Strength", "bigFont.fnt");
-        sliderLabel->setScale(0.4f); // МЕНЬШЕ
-        sliderLabel->setPosition({winSize.width / 2, winSize.height / 2 - 55}); // НИЖЕ
+        sliderLabel->setScale(0.4f);
+        sliderLabel->setPosition({winSize.width / 2, winSize.height / 2 - 55});
         this->addChild(sliderLabel);
 
-        auto slider = Slider::create(this, menu_selector(MotionBlurSettingsPopup::onSlider), 0.7f); // МЕНЬШЕ
-        slider->setPosition({winSize.width / 2, winSize.height / 2 - 80}); // НИЖЕ
+        auto slider = Slider::create(this, menu_selector(MotionBlurSettingsPopup::onSlider), 0.7f);
+        slider->setPosition({winSize.width / 2, winSize.height / 2 - 80});
         slider->setValue(state->m_strength);
         this->addChild(slider);
         m_slider = slider;
@@ -171,27 +176,26 @@ public:
             fmt::format("{:.0f}%", state->m_strength * 100).c_str(),
             "bigFont.fnt"
         );
-        m_valueLabel->setScale(0.35f); // МЕНЬШЕ
-        m_valueLabel->setPosition({winSize.width / 2, winSize.height / 2 - 100}); // НИЖЕ
+        m_valueLabel->setScale(0.35f);
+        m_valueLabel->setPosition({winSize.width / 2, winSize.height / 2 - 100});
         this->addChild(m_valueLabel);
 
-        // Close button
         auto closeMenu = CCMenu::create();
-        closeMenu->setPosition({winSize.width / 2 + 110, winSize.height / 2 + 30}); // НИЖЕ
+        closeMenu->setPosition({winSize.width / 2 + 110, winSize.height / 2 + 30});
 
         auto closeBtn = CCMenuItemSpriteExtra::create(
             CCSprite::createWithSpriteFrameName("GJ_closeBtn_001.png"),
             this,
             menu_selector(MotionBlurSettingsPopup::onClose)
         );
-        closeBtn->setScale(0.7f); // МЕНЬШЕ
+        closeBtn->setScale(0.7f);
         closeMenu->addChild(closeBtn);
         this->addChild(closeMenu);
 
         return true;
     }
 
-    bool ccTouchBegan(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) override {
+    bool ccTouchBegan(CCTouch* touch, CCEvent* event) override {
         return true;
     }
 
@@ -218,7 +222,7 @@ private:
     CCLabelBMFont* m_valueLabel = nullptr;
 };
 
-// ============ PAUSE LAYER BUTTON (НИЖЕ) ============
+// ============ PAUSE LAYER BUTTON ============
 
 class $modify(MyPauseLayer, PauseLayer) {
     struct Fields {
@@ -235,11 +239,10 @@ class $modify(MyPauseLayer, PauseLayer) {
             this,
             menu_selector(MyPauseLayer::onMotionBlurSettings)
         );
-        btn->setScale(0.6f); // МЕНЬШЕ
+        btn->setScale(0.6f);
 
         auto menu = CCMenu::create();
         menu->addChild(btn);
-        // НИЖЕ и ЛЕВЕЕ — под кнопкой Practice
         menu->setPosition({winSize.width - 35, 45});
         this->addChild(menu, 100);
     }
@@ -252,38 +255,60 @@ class $modify(MyPauseLayer, PauseLayer) {
     }
 };
 
-// ============ CCDIRECTOR HOOK (вместо CCScene) ============
+// ============ PLAYLAYER HOOK (правильный blur) ============
 
-class $modify(CCDirector) {
-    void drawScene() {
+class $modify(PlayLayer) {
+    struct Fields {
+        bool m_blurInit = false;
+    };
+
+    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
+        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+        
+        auto state = MotionBlurState::get();
+        state->updateSettings();
+        if (state->m_enabled && !state->m_initialized) {
+            state->init();
+        }
+        
+        m_fields->m_blurInit = true;
+        return true;
+    }
+
+    void visit() {
         auto state = MotionBlurState::get();
         state->updateSettings();
 
-        if (!state->m_enabled) {
-            CCDirector::drawScene();
+        if (!state->m_enabled || !m_fields->m_blurInit) {
+            PlayLayer::visit();
             return;
         }
 
-        if (!state->m_initialized) {
-            state->init();
-        }
-
-        static bool s_rendering = false;
-        if (s_rendering) {
-            CCDirector::drawScene();
+        if (state->m_isRendering) {
+            PlayLayer::visit();
             return;
         }
 
-        s_rendering = true;
+        state->m_isRendering = true;
 
+        // Рендерим текущий кадр в текстуру
         auto rt = state->getCurrentRT();
         rt->beginWithClear(0, 0, 0, 0, 0);
-        CCDirector::drawScene(); // оригинальный рендер
+        PlayLayer::visit();
         rt->end();
 
+        // Сдвигаем кольцевой буфер
         state->advance();
+
+        // Рисуем накопленные кадры
         state->renderAccumulation();
 
-        s_rendering = false;
+        state->m_isRendering = false;
+    }
+
+    void onQuit() {
+        auto state = MotionBlurState::get();
+        state->cleanup();
+        PlayLayer::onQuit();
     }
 };
